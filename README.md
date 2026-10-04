@@ -70,31 +70,81 @@ The platform can then identify models that offer the best balance between **perf
 
 # How It Works
 
+```mermaid
+flowchart TD
+    User["USER"] --> UI["LLMOptiFit UI"]
+    UI --> PA["Prompt Analyzer"]
+
+    PA --> TT["Task Type"]
+    PA --> CX["Complexity"]
+    PA --> PR["Priority"]
+
+    TT --> CS["Candidate Selector"]
+    CX --> CS
+    PR --> CS
+
+    CS --> NM["Nebius Models"]
+
+    NM --> MA["Model A"]
+    NM --> MB["Model B"]
+    NM --> MC["Model C"]
+
+    MA --> EV["Evaluator"]
+    MB --> EV
+    MC --> EV
+
+    EV --> QL["Quality"]
+    EV --> TK["Tokens"]
+    EV --> CT["Cost"]
+
+    QL --> OE["OptiFit Engine"]
+    TK --> OE
+    CT --> OE
+
+    OE --> RC["Recommendation"]
+
+    RC --> BVCF["Best / Value / Cheap / Fast"]
+```
+
 ```text
-User Requirement
-       │
-       ▼
-Understand the Task
-       │
-       ▼
-Identify Candidate LLMs
-       │
-       ▼
-Compare Model Capabilities
-       │
-       ├── Accuracy
-       ├── Correctness
-       ├── Reasoning
-       ├── Tokens
-       ├── Cost
-       ├── Context Window
-       └── Performance
-       │
-       ▼
-Calculate Task Fit
-       │
-       ▼
-Recommend Best-Fit Models
+                     USER
+                      │
+                      ▼
+                LLMOptiFit UI
+                      │
+                      ▼
+               Prompt Analyzer
+                      │
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+      Task Type   Complexity   Priority
+          │           │           │
+          └───────────┼───────────┘
+                      ▼
+              Candidate Selector
+                      │
+                      ▼
+               Nebius Models
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+       Model A      Model B      Model C
+          │           │           │
+          └───────────┼───────────┘
+                      ▼
+                Evaluator
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+       Quality      Tokens       Cost
+          │           │           │
+          └───────────┼───────────┘
+                      ▼
+                OptiFit Engine
+                      │
+                      ▼
+                 Recommendation
+                      │
+                      ▼
+        Best / Value / Cheap / Fast
 ```
 
 ---
