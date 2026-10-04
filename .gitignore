@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+.env
+.DS_Store
+.venv/
+.agents/
+data/*
+!data/arena/
+data/arena/*
+!data/arena/arena_prompts_english.parquet
+!data/arena/arena_prompts_english.csv

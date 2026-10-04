@@ -470,16 +470,70 @@ Potential contribution areas include:
 
 ---
 
+# Datasets, Model & Prompt Complexity Classifier
+
+LLMOptiFit includes real user prompt logs, a 14-parameter prompt complexity scoring system, and a pre-trained model router.
+
+## 1. What is this Data?
+
+### A. LMSYS Chatbot Arena User Prompts (`data/arena/`)
+* **Source:** [`lmsys/chatbot_arena_conversations`](https://huggingface.co/datasets/lmsys/chatbot_arena_conversations)
+* **Description:** Real human user prompts collected from the LMSYS Chatbot Arena, filtered for English conversations, deduplicated, and formatted for prompt classification and router training.
+* **Key Files:**
+  * `data/arena/arena_prompts_english.parquet`: **23,613 unique English user prompts** with human preference votes (`winner`), model pairings, toxicity tags, and placeholder schema fields for task classification.
+  * `data/arena/arena_prompts_english.csv`: CSV export of the processed Arena dataset. Routing and complexity fields are placeholders for future annotation; the bundled classifier is currently trained on synthetic labels.
+
+### B. Pre-trained Model & Router (`cache/models/` & `tools/`)
+* **Model File:** `cache/models/prompt_router.pkl` — Pre-trained `RandomForestClassifier` trained on synthetic labeled rubric feature vectors to classify prompts into **Nano** (`nemotron-nano`), **Super** (`nemotron-super`), or **Ultra** (`nemotron-ultra`) model tiers.
+* **Classifier:** `tools/prompt_classifier.py` — Feature extractor scoring prompts on a **14-parameter rubric** (Reasoning Complexity, Task Type, Decision Search, Accuracy Requirement, Context Length, Output Structure, Domain Difficulty, etc.).
+
+---
+
+## 2. How to Read and Load the Data
+
+### Reading Parquet Datasets in Python
+
+```python
+import pandas as pd
+
+# Load the 23.6K row LMSYS Arena English User Prompts
+df_arena = pd.read_parquet("data/arena/arena_prompts_english.parquet")
+print(f"Arena prompts: {len(df_arena):,}")
+print(df_arena[["prompt_id", "prompt", "model_a", "model_b", "human_preference"]].head())
+```
+
+### Classifying Prompts with the Router Model
+
+```python
+from tools.prompt_classifier import classify_prompt
+
+prompt = "Write an async Python microservice in FastAPI to stream stock tickers from Redis PubSub."
+
+result = classify_prompt(prompt)
+print(f"Route Tier:        {result.route_tier.upper()}")
+print(f"Recommended Model: {result.recommended_model}")
+print(f"Weighted Score:    {result.weighted_score:.3f}")
+print(f"Task Type:         {result.scores.predicted_task_type}")
+
+# Access full 14-parameter rubric breakdown
+for driver in result.rationale["top_drivers"]:
+    print(f"  {driver['parameter']}: score={driver['score']:.2f}, contribution={driver['contribution']:.3f}")
+```
+
+### Command Line Interface
+
+```powershell
+python -m tools.prompt_classifier --prompt "Compare SMA crossover vs RSI mean reversion and output JSON."
+```
+
+### Interactive Notebook
+
+Open [`prompt.ipynb`](prompt.ipynb) in VS Code or Jupyter to interactively load the datasets and run classification visualizers.
+
+---
+
 # Disclaimer
 
 LLM performance varies depending on prompts, datasets, model versions, provider updates, temperature settings, system instructions, and evaluation methodology.
 
 LLMOptiFit recommendations should therefore be treated as decision-support information rather than an absolute measure of model quality. Model pricing and capabilities may also change over time and should be verified with the respective model provider.
-
----
-
-# LLMOptiFit
-
-**One task. Many models. Find the right fit.**
-
-**Compare models. Optimize cost. Choose the right fit.**
