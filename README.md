@@ -68,34 +68,138 @@ The platform can then identify models that offer the best balance between **perf
 
 ---
 
-# How It Works
+# High-Level Design (HLD) & Architecture
+
+```mermaid
+flowchart TD
+    User["USER"] --> UI["LLMOptiFit UI"]
+    UI --> PA["Prompt Analyzer"]
+
+    PA --> TT["Task Type"]
+    PA --> CX["Complexity"]
+    PA --> PR["Priority"]
+
+    TT --> CS["Candidate Selector"]
+    CX --> CS
+    PR --> CS
+
+    CS --> NM["Nebius / Partner Models"]
+
+    NM --> MA["Model A"]
+    NM --> MB["Model B"]
+    NM --> MC["Model C"]
+
+    MA --> EV["Evaluator"]
+    MB --> EV
+    MC --> EV
+
+    EV --> QL["Quality"]
+    EV --> TK["Tokens"]
+    EV --> CT["Cost"]
+
+    QL --> OE["OptiFit Engine"]
+    TK --> OE
+    CT --> OE
+
+    OE --> RC["Recommendation"]
+
+    RC --> BVCF["Best / Value / Cheap / Fast"]
+```
 
 ```text
-User Requirement
-       │
-       ▼
-Understand the Task
-       │
-       ▼
-Identify Candidate LLMs
-       │
-       ▼
-Compare Model Capabilities
-       │
-       ├── Accuracy
-       ├── Correctness
-       ├── Reasoning
-       ├── Tokens
-       ├── Cost
-       ├── Context Window
-       └── Performance
-       │
-       ▼
-Calculate Task Fit
-       │
-       ▼
-Recommend Best-Fit Models
+                     USER
+                      │
+                      ▼
+                LLMOptiFit UI
+                      │
+                      ▼
+               Prompt Analyzer
+                      │
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+      Task Type   Complexity   Priority
+          │           │           │
+          └───────────┼───────────┘
+                      ▼
+              Candidate Selector
+                      │
+                      ▼
+               Nebius Models
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+       Model A      Model B      Model C
+          │           │           │
+          └───────────┼───────────┘
+                      ▼
+                Evaluator
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+       Quality      Tokens       Cost
+          │           │           │
+          └───────────┼───────────┘
+                      ▼
+                OptiFit Engine
+                      │
+                      ▼
+                 Recommendation
+                      │
+                      ▼
+        Best / Value / Cheap / Fast
 ```
+
+### High-Level Flow Breakdown
+
+1. **User & UI Layer**: The user submits a prompt or task requirement through the LLMOptiFit UI / API.
+2. **Prompt Analyzer**: Analyzes and extracts 15 structured variables across Task Type, Complexity, Ambiguity, Constraints, and Token requirements.
+3. **Candidate Selector**: Filters eligible models (e.g. from Nebius, OpenAI, Anthropic, Open-Source) matching modality, language, context length, and latency constraints.
+4. **Multi-Dimension Evaluator**: Evaluates candidate models on Output Quality, Token Consumption, and Cost.
+5. **OptiFit Engine**: Weighs trade-offs and generates categorized recommendations (**Best Overall**, **Best Value**, **Cheapest**, **Fastest**).
+
+---
+
+# Categorical Variables & Routing Schema
+
+LLMOptiFit classifies prompts into a standardized 15-variable routing schema to determine model capability requirements.
+
+## 1. Task Type Categories (11 Classes)
+
+| Task ID | Description | Recommended Capability | Primary Evaluation Method |
+| :--- | :--- | :--- | :--- |
+| **`sql_data`** | Write, debug, optimize, explain, or transform SQL; database, schema, ETL, data engineering, analytics, Snowflake, Spark, Pandas, or tabular-data work. | `coding + structured-output` | SQL parsing, execution, schema-reference validation |
+| **`code`** | Write, debug, refactor, explain, test, review, or optimize source code. | `coding` | Compile, unit tests, static analysis |
+| **`math_reasoning`** | Arithmetic, algebra, probability, logic puzzles, algorithmic reasoning, or multi-step quantitative work. | `reasoning` | Exact answer, numeric tolerance, symbolic validation |
+| **`factual_qa`** | Questions whose answer depends on real-world facts, current events, research, products, places, laws, or named entities. | `retrieval-grounded` | Citation support and factual-grounding score |
+| **`summarize`** | Condense a supplied article, document, transcript, meeting notes, code, or conversation without adding information. | `long-context` | Faithfulness, coverage, requested length |
+| **`rewrite_translate`** | Rewrite, proofread, paraphrase, change tone, simplify, translate, or adapt content for an audience. | `language-generation` | Meaning preservation and instruction following |
+| **`extract_transform`** | Extract named fields, entities, tables, dates, facts, or convert text into JSON, CSV, XML, Markdown, or another specified schema. | `structured-output` | Schema validation, exact field match |
+| **`classify`** | Assign a fixed label, sentiment, topic, risk level, priority, intent, or category to supplied input. | `fast-classification` | Label accuracy, F1, precision/recall |
+| **`planning_tool_use`**| Create a plan, choose tools, orchestrate steps, schedule work, query a database, call an API, or complete multi-step agent work. | `tool-calling + reasoning` | Tool success rate and final-goal completion |
+| **`creative_generation`**| Write stories, poems, marketing copy, scripts, social-media posts, role-play, ideas, or brainstorming output. | `creative-writing` | Preference score, style adherence |
+| **`general_chat`** | Casual conversation, explanations, opinions, personal advice, greetings, and prompts that do not fit another task class. | `general-instruction` | Helpfulness and relevance |
+
+---
+
+## 2. 15-Variable Minimum Routing Schema
+
+| Variable | Data Type | Example Values | Why It Matters / Role in Routing |
+| :--- | :--- | :--- | :--- |
+| **`task_type`** | Categorical | `sql_data`, `code`, `factual_qa`, `summarize`, `extract_transform` | Selects model capability and evaluation method |
+| **`language`** | Categorical | `en`, `zh`, `es`, `hi`, `other` | Excludes models that do not support the prompt language |
+| **`modality`** | Categorical | `text`, `code`, `table`, `image`, `document` | Vision/document/code support is a hard model filter |
+| **`complexity_score`** | Integer (1–5) | `1` (simple rewrite) &rarr; `5` (multi-step SQL/architecture) | Controls model parameter tier and token/latency budget |
+| **`ambiguity_score`** | Integer (1–5) | `1` (fully specified) &rarr; `5` (unclear objective/context) | Decides whether to clarify or rewrite before routing |
+| **`context_completeness`** | Categorical | `complete`, `partial`, `missing` | Stops a model call when required input context is absent |
+| **`output_contract`** | Categorical | `schema`, `format_only`, `none` | Determines whether output can be validated automatically |
+| **`constraint_completeness`**| Categorical | `explicit_bounded`, `partial`, `none` | Captures length, scope, exclusions, tone, cost, and latency constraints |
+| **`needs_retrieval`** | Boolean | `true`, `false` | Routes factual/current questions through search/RAG |
+| **`needs_tools`** | Boolean | `true`, `false` | Routes to a tool-calling model or agent workflow |
+| **`risk_level`** | Ordinal | `low`, `medium`, `high`, `regulated` | Activates safety, grounding, or human-review guardrails |
+| **`privacy_requirement`** | Categorical | `none`, `sensitive`, `local_only` | Can force Ollama/local routing rather than hosted APIs |
+| **`urgency_latency_tier`** | Categorical | `realtime`, `interactive`, `batch` | Filters models based on latency requirement |
+| **`estimated_input_tokens`** | Integer | `120`, `4_800`, `32_000` | Filters by context window and estimates cost |
+| **`estimated_output_tokens`**| Integer | `100`, `2_000` | Estimates cost, latency, and output capacity |
+
+---
 
 ---
 
