@@ -20,3 +20,27 @@ Before running any command using `run_command` or terminal scripts, adhere to th
 
 4. **Sudo / Privileged Commands (`sudo`)**:
    - **STRICT PROHIBITION**: `sudo` commands (or Windows administrative elevation commands) are **NOT allowed** without explicit, per-invocation confirmation from the user. Never execute `sudo` or admin commands automatically.
+
+## Active Session Execution Allowlist
+
+The following commands and command patterns executed during the model routing, EDA, and notebook classification workflow are authorized and allowlisted:
+
+### 1. Inspection & Filesystem Commands
+- `git status`
+- `ls -lh <path>` (e.g., `ls -lh data/arena/`, `ls -lh prompt.ipynb`, `ls -lh data/arena/arena_prompts_classified.parquet`)
+
+### 2. Environment & Dependency Management
+- `.venv/bin/pip list`
+- `.venv/bin/pip install <package>` (packages documented in `requirements.txt`, e.g., `matplotlib`)
+
+### 3. Workflow & Script Execution
+- `.venv/bin/python <path>/generate_notebook.py`
+- `.venv/bin/python <path>/test_pipeline.py`
+- `.venv/bin/python <path>/execute_notebook.py`
+- `.venv/bin/python examples/<script_name>.py`
+- `.venv/bin/python tools/<tool_name>.py`
+
+### 4. Inline Python Diagnostics & Benchmarks (`.venv/bin/python -c "..."`)
+- Non-destructive dataset & schema inspection (`pandas`, `pyarrow`)
+- Feature extraction & classifier performance benchmarks (`scikit-learn`)
+- Notebook validation & headless kernel execution checks (`IPython`, `json`)
