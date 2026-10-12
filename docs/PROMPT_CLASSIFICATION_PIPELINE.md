@@ -138,15 +138,59 @@ $$\text{Specificity} = 0.20 \cdot \min(1, \frac{W}{60}) + 0.20 \cdot \min(1, \fr
 
 ---
 
-## 7. Artifacts & Usage
+## 7. Nebius Token Factory Model Catalog & Pareto Recommendation Engine
 
-1. **Interactive Jupyter Notebook**: [`prompt.ipynb`](../prompt.ipynb) — Fully executed with 28 code cells and embedded visual figures.
-2. **Classified Parquet Dataset**: `data/arena/arena_prompts_classified.parquet` — 23,613 prompts enriched with 21 classification features.
-3. **Live Router Function**:
+### Live Catalog Integration
+Connected directly to the official Nebius Token Factory live catalog ([`https://tokenfactory.nebius.com/models/catalog`](https://tokenfactory.nebius.com/models/catalog)) and its public endpoint ([`https://tokenfactory.nebius.com/api/public/models_info`](https://tokenfactory.nebius.com/api/public/models_info)). 
+
+All model metadata, specifications, and live pricing are structured in [`config/nebius_catalog.json`](../config/nebius_catalog.json):
+
+| Model Tier | Live Nebius Model ID | Vendor | Size | Input / Output per 1M | Tokens/sec | Context Window |
+|---|---|---|---|---|---|---|
+| **NANO** | `nvidia/Nemotron-3_5-Lightning` | NVIDIA | 30B | **$0.06 / $0.24** | 267 t/s | 64k |
+| **NANO** | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | NVIDIA | 30B | **$0.06 / $0.24** | 58 t/s | 128k |
+| **NANO** | `Qwen/Qwen3-30B-A3B-Instruct-2507` | Qwen | 30B | **$0.08 / $0.28** | 67 t/s | 128k |
+| **SUPER** | `deepseek-ai/DeepSeek-V4-Flash-0731` | DeepSeek | 67B | **$0.14 / $0.28** | 236 t/s | 128k |
+| **SUPER** | `nvidia/nemotron-3-super-120b-a12b` | NVIDIA | 120B | **$0.30 / $0.90** | 93 t/s | 128k |
+| **SUPER** | `Qwen/Qwen3-235B-A22B-Instruct-2507` | Qwen | 235B | **$0.20 / $0.60** | 75 t/s | 128k |
+| **ULTRA** | `NousResearch/Hermes-4-405B` | NousResearch | 405B | **$1.00 / $3.00** | 48 t/s | 128k |
+| **ULTRA** | `nvidia/Nemotron-3-Ultra-550b-a55b` | NVIDIA | 550B | **$1.00 / $3.00** | 332 t/s | 128k |
+| **ULTRA** | `deepseek-ai/DeepSeek-V4-Pro` | DeepSeek | 671B | **$1.75 / $3.50** | 42 t/s | 128k |
+
+### Pareto Frontier & Utility Optimization Formulation
+The recommendation engine ([`tools/nebius_recommender.py`](../tools/nebius_recommender.py)) computes:
+
+1. **Exact Token Costs**:
+   $$\text{Cost}_{\text{USD}} = \frac{T_{\text{in}} \cdot P_{\text{in}} + T_{\text{out}} \cdot P_{\text{out}}}{1,000,000}$$
+2. **Estimated Latency**:
+   $$\text{Latency} = 0.20\text{s (TTFT)} + \frac{T_{\text{out}}}{\text{Tokens/sec}}$$
+3. **Task & Tier Affinity Alignment ($Q(m)$)**:
+   $$Q(m) = Q_{\text{base}} \pm 15 \cdot \Delta_{\text{tier}} + 7 \cdot \mathbb{I}[\text{task}] + 4 \cdot \mathbb{I}[\text{NVIDIA}]$$
+4. **Pareto Dominance**:
+   Candidate $A$ strictly dominates $B$ if $\text{Cost}(A) \le \text{Cost}(B)$ and $Q(A) \ge Q(B)$ (with at least one strict inequality).
+5. **Utility Function**:
+   $$U(m) = Q(m) - 10 \cdot (1 + \omega_{\text{cost}}) \cdot \text{Cost} \times 10^3 - 3 \cdot (1 + \omega_{\text{lat}}) \cdot \frac{\text{Latency}}{2}$$
+
+---
+
+## 8. Artifacts & Usage
+
+1. **Interactive Jupyter Notebook**: [`prompt.ipynb`](../prompt.ipynb) — Fully executed with 28 code cells, visual figures, and Nebius live routing outputs.
+2. **Model Catalog**: [`config/nebius_catalog.json`](../config/nebius_catalog.json) — 24 Nebius Token Factory live models with exact specifications and pricing.
+3. **Recommender Module**: [`tools/nebius_recommender.py`](../tools/nebius_recommender.py) — Pareto frontier filtering, cost calculations, and utility ranking.
+4. **Executable Demo Script**: [`examples/nebius_routing_demo.py`](../examples/nebius_routing_demo.py) — Demonstrates routing across simple, structured, coding, and frontier reasoning prompts.
+5. **Live Classifier & Recommendation Usage**:
 ```python
-from tools.prompt_classifier import classify_prompt
+from tools.nebius_recommender import recommend_for_prompt
 
-res = classify_prompt("Design an async Python microservice with Redis pub/sub and OpenTelemetry.")
-print(f"Tier: {res.route_tier} | Model: {res.recommended_model} | Score: {res.weighted_score}")
-# Tier: ultra | Model: nemotron-ultra | Score: 0.612
+# 1. Simple factual query -> Routes to NVIDIA Nemotron 3.5 Lightning (92% savings)
+rec_easy = recommend_for_prompt("What is the capital of Australia?")
+print(f"Model: {rec_easy.recommended_model_id} | Cost: ${rec_easy.estimated_cost_usd:.6f} | Savings: {rec_easy.cost_savings_vs_frontier_pct:.1f}%")
+# Model: nvidia/Nemotron-3_5-Lightning | Cost: $0.000085 | Savings: 92.0%
+
+# 2. Complex distributed systems architecture -> Routes to NVIDIA Nemotron-3-Ultra-550B
+rec_hard = recommend_for_prompt("Architect a globally distributed, Byzantine fault-tolerant consensus protocol for financial ledgers.")
+print(f"Model: {rec_hard.recommended_model_id} | Tier: {rec_hard.tier} | Latency: {rec_hard.estimated_latency_sec:.2f}s")
+# Model: nvidia/Nemotron-3-Ultra-550b-a55b | Tier: ultra | Latency: 1.06s
 ```
+

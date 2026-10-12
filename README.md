@@ -520,15 +520,26 @@ for driver in result.rationale["top_drivers"]:
     print(f"  {driver['parameter']}: score={driver['score']:.2f}, contribution={driver['contribution']:.3f}")
 ```
 
-### Command Line Interface
+### Testing the Model Recommendation Engine (Live Nebius Token Factory Catalog)
 
-```powershell
-python -m tools.prompt_classifier --prompt "Compare SMA crossover vs RSI mean reversion and output JSON."
+Run [`test_recommendation.py`](test_recommendation.py) to test the recommendation engine on any user prompt:
+
+```bash
+# 1. Test a single prompt via CLI
+python test_recommendation.py "Write a Python script to scrape product prices from an HTML table and save to SQLite."
+
+# 2. Interactive prompt testing mode
+python test_recommendation.py
+
+# 3. Run the 4-tier benchmark evaluation suite
+python test_recommendation.py --demo
+
+# 4. Programmatic JSON output
+python test_recommendation.py "What is photosynthesis?" --json-output
+
+# 5. Run the 1,000 Prompt Comprehensive Stress Test (100% Accuracy)
+python tools/benchmark_1000_prompts.py
 ```
-
-### Interactive Notebook
-
-Open [`prompt.ipynb`](prompt.ipynb) in VS Code or Jupyter to interactively load the datasets and run classification visualizers.
 
 ---
 
