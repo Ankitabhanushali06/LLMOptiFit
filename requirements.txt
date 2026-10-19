@@ -10,3 +10,6 @@ pyarrow>=17.0.0
 
 # Jupyter & Notebook Execution
 ipykernel>=6.29.0
+
+# Visualization
+matplotlib>=3.8.0

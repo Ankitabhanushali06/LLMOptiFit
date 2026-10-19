@@ -8,6 +8,8 @@ __pycache__/
 .agents/
 data/*
 !data/arena/
+!data/benchmark_1000_prompts.json
 data/arena/*
 !data/arena/arena_prompts_english.parquet
 !data/arena/arena_prompts_english.csv
+
