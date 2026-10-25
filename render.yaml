@@ -1,0 +1,21 @@
+# Free pilot. No payment method or paid add-ons. Generation starts disabled.
+services:
+  - type: web
+    name: llmoptifit
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements-runtime.txt
+    startCommand: uvicorn api.server:app --host 0.0.0.0 --port $PORT --workers 1 --no-proxy-headers --no-access-log
+    healthCheckPath: /api/health
+    autoDeployTrigger: off
+    envVars:
+      - key: GENERATION_ENABLED
+        value: "false"
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+# Add NEBIUS_API_KEY as a secret in Render; never put it here or in a build arg.
+# Enable GENERATION_ENABLED only after accepting provider usage costs or arranging
+# a provider-enforced credit-only cap. Request limits are not a spending cap.

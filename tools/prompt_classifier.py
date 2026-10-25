@@ -28,7 +28,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 
-MODEL_PATH = Path("cache/models/prompt_router.pkl")
+MODEL_PATH = Path(__file__).resolve().parent.parent / "cache/models/prompt_router.pkl"
 
 WEIGHTS: dict[str, float] = {
     "reasoning_complexity": 0.20,

@@ -45,8 +45,16 @@ def load_env_file(env_path: Path = ENV_FILE) -> None:
         pass
 
 
-# Automatically attempt to load .env on module import
-load_env_file()
+class ProviderError(RuntimeError):
+    """Content-free provider error safe to expose publicly."""
+    def __init__(self, code: str, message: str, status: int = 502):
+        super().__init__(message)
+        self.code, self.status = code, status
+
+
+class NoRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None  # Never forward Authorization to another endpoint.
 
 
 @dataclass
@@ -75,10 +83,13 @@ class NebiusTokenFactoryClient:
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         timeout_sec: float = 60.0,
+        allow_env: bool = True,
     ):
-        load_env_file()
-        self.api_key = api_key or os.environ.get("NEBIUS_API_KEY")
-        self.base_url = (base_url or os.environ.get("NEBIUS_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+        if allow_env:
+            load_env_file()
+        self.api_key = api_key if not allow_env else (api_key or os.environ.get("NEBIUS_API_KEY"))
+        self.base_url = ((base_url or os.environ.get("NEBIUS_BASE_URL") or DEFAULT_BASE_URL)
+                         if allow_env else DEFAULT_BASE_URL).rstrip("/")
         self.timeout_sec = timeout_sec
 
     def is_configured(self) -> bool:
@@ -135,42 +146,44 @@ class NebiusTokenFactoryClient:
 
         start_time = time.perf_counter()
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout_sec) as response:
+            with urllib.request.build_opener(NoRedirects()).open(req, timeout=self.timeout_sec) as response:
+                resp_bytes = response.read(2_000_001)
+                if len(resp_bytes) > 2_000_000:
+                    raise ProviderError("provider_response", "The provider response was too large.")
                 latency = time.perf_counter() - start_time
-                resp_bytes = response.read()
                 resp_json = json.loads(resp_bytes.decode("utf-8"))
 
                 choices = resp_json.get("choices", [])
                 if not choices:
-                    return "", {}, latency
+                    raise ProviderError("provider_response", "The provider returned no answer.")
 
                 msg = choices[0].get("message", {})
                 content = (msg.get("content") or "").strip()
-                reasoning = (msg.get("reasoning_content") or "").strip()
+                generated_text = content or choices[0].get("text", "") or ""
+                if not isinstance(generated_text, str) or not generated_text.strip():
+                    raise ProviderError("provider_response", "The provider returned no final answer. Usage may still be billed.")
 
-                if content and reasoning:
-                    generated_text = f"{content}\n\n---\n💭 *Reasoning Process:*\n{reasoning}"
-                elif content:
-                    generated_text = content
-                elif reasoning:
-                    generated_text = reasoning
-                else:
-                    generated_text = choices[0].get("text", "") or ""
-
-                usage = resp_json.get("usage", {})
+                usage = resp_json.get("usage") or {}
+                if not isinstance(usage, dict):
+                    raise ProviderError("provider_response", "The provider returned invalid usage data.")
                 return generated_text, usage, latency
 
         except urllib.error.HTTPError as e:
-            latency = time.perf_counter() - start_time
-            err_body = e.read().decode("utf-8", errors="replace")
-            raise RuntimeError(
-                f"Nebius Token Factory API Error ({e.code} {e.reason}): {err_body}"
-            ) from e
+            code = e.code
+            e.close()
+            if code in (401, 403):
+                raise ProviderError("provider_auth", "Nebius rejected your key or model access.", 401) from None
+            if code == 429:
+                raise ProviderError("provider_limit", "Your Nebius account is rate limited. Try again later.", 429) from None
+            if code in (400, 404, 422):
+                raise ProviderError("provider_model", "Nebius could not run this request. Check model availability and context limits.") from None
+            raise ProviderError("provider_unavailable", "Nebius is temporarily unavailable.") from None
         except urllib.error.URLError as e:
-            latency = time.perf_counter() - start_time
-            raise ConnectionError(
-                f"Failed to connect to Nebius Token Factory at {endpoint}: {e.reason}"
-            ) from e
+            raise ProviderError("provider_unavailable", "Could not reach Nebius. No automatic retry was made.") from None
+        except TimeoutError:
+            raise ProviderError("provider_timeout", "Nebius timed out. The request may still be billed; retry only if you choose.", 504) from None
+        except (ValueError, TypeError, AttributeError, KeyError, IndexError):
+            raise ProviderError("provider_response", "Nebius returned an unreadable response.") from None
 
 
 def route_and_generate(
@@ -182,6 +195,7 @@ def route_and_generate(
     cost_sensitivity: float = 0.5,
     latency_sensitivity: float = 0.5,
     simulation_if_missing_key: bool = True,
+    prefer_nvidia: bool = True,
 ) -> GenerationResult:
     """
     End-to-end LLMOptiFit pipeline:
@@ -197,6 +211,7 @@ def route_and_generate(
         prompt,
         cost_sensitivity=cost_sensitivity,
         latency_sensitivity=latency_sensitivity,
+        prefer_nvidia=prefer_nvidia,
     )
 
     client = NebiusTokenFactoryClient(api_key=api_key)

@@ -149,15 +149,15 @@ class NebiusParetoRecommender:
         frontier_benchmark_id: str = FALLBACK_FRONTIER_ID,
     ) -> RecommendationResult:
         in_tokens, out_tokens = self._estimate_tokens(prompt_text, task_type)
-        total_tokens = in_tokens + out_tokens
+        # Conservative byte bound, full output allowance and message overhead.
+        total_tokens = len(prompt_text.encode("utf-8")) + 1024
 
         candidates = self.catalog.filter_candidates(
             min_context=total_tokens + 500,
             needs_json=has_json_request,
         )
         if not candidates:
-            # Fallback to all models if filtering was too strict
-            candidates = self.catalog.models
+            raise ValueError("No catalog model meets this prompt's context and format requirements.")
 
         evaluations: list[ModelEvaluation] = []
         for m in candidates:
@@ -263,8 +263,8 @@ class NebiusParetoRecommender:
         rationale = (
             f"Prompt matches {route_tier.upper()} tier ({task_type}, complexity={complexity_score:.2f}). "
             f"Selected {winner.name}{nvidia_tag} as the Pareto-optimal candidate: "
-            f"delivers {winner_eval.quality_match:.1f}/100 quality fit at ${winner_eval.cost_usd:.6f} "
-            f"({savings_pct:.1f}% cheaper than frontier {frontier_model.name})."
+            f"has an uncalibrated fit score of {winner_eval.quality_match:.1f} at an estimated ${winner_eval.cost_usd:.6f} "
+            f"({savings_pct:.1f}% estimated savings versus {frontier_model.name}, using catalog prices)."
         )
 
         sorted_pareto = sorted(pareto_candidates, key=lambda x: x.utility_score, reverse=True)

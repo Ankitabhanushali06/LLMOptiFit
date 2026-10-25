@@ -1,0 +1,3 @@
+-r requirements-runtime.txt
+# Optional isolated Chromium smoke test
+websockets==17.3

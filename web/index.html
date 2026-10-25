@@ -1,375 +1,105 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LLMOptiFit — Pareto-Optimal LLM Router & Token Factory Orchestrator</title>
-  <meta name="description" content="Intelligent LLM router matching prompt characteristics to Pareto-optimal Nebius Token Factory models with NVIDIA open-source acceleration.">
-  
-  <!-- Modern Typography from Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
-  
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="Find an LLM that fits your prompt. Compare estimated cost, speed, and task fit. Generate through the app’s Nebius account.">
+  <title>LLMOptiFit — Find the right model</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
 </head>
 <body>
-  <!-- Ambient background glow elements -->
-  <div class="ambient-glow glow-1"></div>
-  <div class="ambient-glow glow-2"></div>
-  <div class="ambient-glow glow-3"></div>
-
-  <!-- Main Application Wrapper -->
+  <a href="#prompt" class="skip-link">Skip to prompt</a>
   <div class="app-layout">
-    
-    <!-- Top Navigation Bar -->
     <header class="app-header">
-      <div class="brand-container">
-        <div class="logo-mark">
-          <svg viewBox="0 0 32 32" fill="none" class="logo-svg">
-            <polygon points="16,3 29,10.5 29,25.5 16,33 3,25.5 3,10.5" stroke="url(#logo-grad)" stroke-width="2.5" fill="rgba(16, 185, 129, 0.08)"/>
-            <circle cx="16" cy="18" r="4.5" fill="#10B981" />
-            <path d="M16 7L16 13.5M25 21L19.5 19M7 21L12.5 19" stroke="#34D399" stroke-width="2" stroke-linecap="round"/>
-            <defs>
-              <linearGradient id="logo-grad" x1="0" y1="0" x2="32" y2="32">
-                <stop offset="0%" stop-color="#10B981"/>
-                <stop offset="50%" stop-color="#06B6D4"/>
-                <stop offset="100%" stop-color="#8B5CF6"/>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-        <div class="brand-titles">
-          <h1 class="brand-name">LLMOptiFit <span class="version-badge">v1.0</span></h1>
-          <p class="brand-tagline">Pareto-Optimal LLM Router &bull; Nebius Token Factory</p>
-        </div>
-      </div>
-
-      <div class="header-badges">
-        <div class="status-pill status-nebius" id="nebius-status-pill">
-          <span class="pulse-dot"></span>
-          <span class="status-label">Nebius Token Factory Active</span>
-        </div>
-        <div class="status-pill status-nvidia">
-          <span class="nvidia-icon">&#9670;</span>
-          <span>NVIDIA Open-Source Ready</span>
-        </div>
-        <button class="catalog-btn" id="open-catalog-btn" title="Inspect all 24 models in Nebius catalog">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-          <span>Catalog (24)</span>
-        </button>
-      </div>
+      <a class="brand" href="/" aria-label="LLMOptiFit home"><img src="/icons/icon.svg" width="44" height="44" alt=""><span><strong>LLMOptiFit</strong><small>A better fit for every prompt</small></span></a>
+      <nav aria-label="App navigation">
+        <button id="catalog-button" class="button secondary" type="button">Model catalog</button>
+        <button id="install-button" class="button secondary" type="button">Install app</button>
+      </nav>
     </header>
-
-    <!-- Main Content Container: Left Panel (Input & Tuning) | Right Panel (Recommendation & Output) -->
+    <section class="intro">
+      <span class="eyebrow">PROMPT → MODEL → ANSWER</span>
+      <h1>Find the right model.<br><span>Know the tradeoffs.</span></h1>
+      <p>Compare task fit, estimated cost, and speed. Recommendations are free. Live answers use the app’s Nebius account when generation is enabled.</p>
+    </section>
+    <div id="connection-status" class="notice" role="status" aria-live="polite">Ready to analyze. An idle server may take about a minute to wake up.</div>
+    <noscript><p class="notice error">Enable JavaScript to analyze prompts and use this app.</p></noscript>
     <main class="dashboard-grid">
-
-      <!-- LEFT COLUMN: Prompt Workshop & Parameter Configuration -->
-      <section class="panel-left">
-        
-        <!-- Prompt Input Card -->
-        <div class="glass-card prompt-card">
-          <div class="card-header">
-            <div class="header-title-group">
-              <span class="card-icon">&#9998;</span>
-              <h2 class="card-title">Prompt Workshop</h2>
-            </div>
-            <div class="token-meter" id="prompt-token-meter">
-              <span class="meter-label">Est. Tokens:</span>
-              <span class="meter-val" id="in-token-count">0</span>
-            </div>
+        <form id="prompt-form" class="card">
+          <div class="card-heading"><h2>1. Describe your task</h2><span id="character-count" class="muted">0 / 20,000</span></div>
+          <label for="prompt">Your prompt</label>
+          <textarea id="prompt" rows="8" maxlength="20000" required placeholder="Write a Python function to merge overlapping intervals and explain its time complexity." aria-describedby="prompt-help"></textarea>
+          <p id="prompt-help" class="hint">Text is sent to this server only when you choose Analyze or Generate. Avoid confidential information.</p>
+          <div class="preset-row" aria-label="Example prompts">
+            <button type="button" class="chip" data-preset="simple">Quick question</button>
+            <button type="button" class="chip" data-preset="coding">Coding</button>
+            <button type="button" class="chip" data-preset="extraction">Extract JSON</button>
+            <button type="button" class="chip" data-preset="reasoning">Complex reasoning</button>
           </div>
-
-          <div class="prompt-input-wrapper">
-            <textarea 
-              id="prompt-input" 
-              class="prompt-textarea" 
-              rows="5" 
-              placeholder="Enter your prompt here, or select a preset below to see how LLMOptiFit dynamically classifies task complexity and routes to the Pareto-optimal model..."
-            >Write a fast Python script to scrape product prices from an HTML table and save them into a SQLite database with indexed lookups.</textarea>
+          <div class="slider-grid">
+            <div><label for="cost">Cost priority <output id="cost-value" for="cost">50%</output></label><input id="cost" type="range" min="0" max="100" value="50"><div class="range-labels"><span>Less weight</span><span>More savings</span></div></div>
+            <div><label for="speed">Speed priority <output id="speed-value" for="speed">50%</output></label><input id="speed" type="range" min="0" max="100" value="50"><div class="range-labels"><span>Less weight</span><span>Faster answers</span></div></div>
           </div>
-
-          <!-- Quick Starter Pills -->
-          <div class="presets-section">
-            <span class="presets-label">Quick Benchmarks:</span>
-            <div class="preset-pills" id="preset-pills">
-              <button class="pill-btn active" data-preset="coding">
-                <span>&#128187; Python Scraper</span>
-              </button>
-              <button class="pill-btn" data-preset="sql">
-                <span>&#128452; Manager Salary SQL</span>
-              </button>
-              <button class="pill-btn" data-preset="math">
-                <span>&#129518; Quadratic Equation</span>
-              </button>
-              <button class="pill-btn" data-preset="architecture">
-                <span>&#9881; Byzantine Consensus</span>
-              </button>
-              <button class="pill-btn" data-preset="extraction">
-                <span>&#128203; Extract JSON Contacts</span>
-              </button>
-              <button class="pill-btn" data-preset="nano">
-                <span>&#9889; Simple "1 + 1"</span>
-              </button>
-            </div>
+          <label class="check"><input id="prefer-nvidia" type="checkbox" checked> Prefer NVIDIA models when comparing candidates</label>
+          <button id="analyze-button" class="button primary wide" type="submit">Analyze prompt</button>
+          <p id="analysis-status" class="hint" role="status" aria-live="polite"></p>
+        </form>
+        <section class="card" id="classification-card" hidden aria-labelledby="classification-title">
+          <h2 id="classification-title">What your prompt needs</h2>
+          <div class="metric-grid"><div><span>Task</span><strong id="task-value">—</strong></div><div><span>Tier</span><strong id="tier-value">—</strong></div><div><span>Complexity</span><strong id="complexity-value">—</strong></div></div>
+          <div id="drivers" class="preset-row"></div>
+          <p class="hint">Task classification combines a trained model and rules. Routing tiers use rules. Scores are estimates, not measured answer quality.</p>
+        </section>
+        <section id="recommendation-card" class="card recommendation" aria-labelledby="recommendation-title">
+          <span class="eyebrow">2. REVIEW YOUR MODEL</span>
+          <h2 id="recommendation-title">Your recommendation appears here</h2>
+          <p id="recommendation-empty" class="muted">Analyze a prompt to compare the catalog's eligible models.</p>
+          <div id="recommendation-content" hidden>
+            <div class="model-line"><code id="model-id"></code><button id="copy-model" type="button" class="button secondary">Copy ID</button></div>
+            <div class="metric-grid"><div><span>Estimated cost</span><strong id="estimated-cost">—</strong></div><div><span>Estimated latency</span><strong id="estimated-latency">—</strong></div><div><span>Fit score</span><strong id="fit-score">—</strong></div></div>
+            <p id="rationale" class="rationale"></p>
+            <p class="hint">Fit score is an uncalibrated ranking index, not a percentage or accuracy claim. Savings compare estimated usage against a catalog baseline.</p>
+            <p id="catalog-date" class="hint"></p>
+            <h3>Other eligible choices</h3><div id="alternatives" class="alternatives"></div>
           </div>
-
-          <!-- Tradeoff Tuning Controls -->
-          <div class="tuning-section">
-            <div class="tuning-row">
-              <div class="slider-control">
-                <div class="slider-label-row">
-                  <span class="slider-name">Cost Sensitivity</span>
-                  <span class="slider-val-badge" id="cost-val">50%</span>
-                </div>
-                <input type="range" id="cost-slider" min="0" max="100" value="50" class="custom-slider slider-cost">
-                <div class="slider-endpoints">
-                  <span>Quality Focused</span>
-                  <span>Max Budget Savings</span>
-                </div>
-              </div>
-
-              <div class="slider-control">
-                <div class="slider-label-row">
-                  <span class="slider-name">Latency Sensitivity</span>
-                  <span class="slider-val-badge" id="latency-val">50%</span>
-                </div>
-                <input type="range" id="latency-slider" min="0" max="100" value="50" class="custom-slider slider-lat">
-                <div class="slider-endpoints">
-                  <span>Deep Reasoning</span>
-                  <span>Instant TTFT</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Toggles & Preferences -->
-            <div class="toggle-row">
-              <label class="switch-container">
-                <input type="checkbox" id="prefer-nvidia-toggle" checked>
-                <span class="switch-slider"></span>
-                <span class="switch-label">
-                  <strong class="nv-green">Prefer NVIDIA Open-Source</strong>
-                  <span class="switch-hint">(Nemotron-3.5-Lightning, Super-120B, Ultra-550B)</span>
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="action-buttons-row">
-            <button class="btn btn-secondary" id="analyze-btn" title="Inspect prompt parameters and model route without inference">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-              <span>Inspect Pareto Route</span>
-            </button>
-            <button class="btn btn-primary" id="generate-btn" title="Classify, route, and execute live on Nebius Token Factory">
-              <span class="btn-spinner" id="btn-spinner"></span>
-              <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-              <span class="btn-text" id="btn-text">Route &amp; Generate Live</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Prompt Telemetry / NLP Scoring Card -->
-        <div class="glass-card telemetry-card">
-          <div class="card-header">
-            <div class="header-title-group">
-              <span class="card-icon">&#128269;</span>
-              <h3 class="card-title">Prompt Classification Telemetry</h3>
-            </div>
-            <span class="telemetry-badge" id="clf-engine-badge">Supervised NLP (100% Accuracy)</span>
-          </div>
-
-          <div class="telemetry-metrics-grid">
-            <div class="telemetry-metric-box">
-              <span class="metric-tiny-title">PREDICTED TASK</span>
-              <div class="metric-main-val">
-                <span class="task-icon" id="telemetry-task-icon">&#128187;</span>
-                <span class="task-name" id="telemetry-task-name">CODING</span>
-              </div>
-            </div>
-
-            <div class="telemetry-metric-box">
-              <span class="metric-tiny-title">RECOMMENDED TIER</span>
-              <div class="metric-main-val">
-                <span class="tier-pill" id="telemetry-tier-pill">NANO</span>
-              </div>
-            </div>
-
-            <div class="telemetry-metric-box">
-              <span class="metric-tiny-title">COMPLEXITY SCORE</span>
-              <div class="complexity-progress-wrapper">
-                <span class="complexity-num" id="telemetry-complexity-num">0.18</span>
-                <div class="mini-progress-bar">
-                  <div class="mini-progress-fill" id="telemetry-complexity-fill" style="width: 18%;"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="telemetry-metric-box">
-              <span class="metric-tiny-title">EST. PROMPT TOKENS</span>
-              <div class="metric-main-val font-mono" id="telemetry-tokens">~24 tokens</div>
-            </div>
-          </div>
-
-          <!-- Parameter Drivers Bar List -->
-          <div class="drivers-container">
-            <span class="drivers-title">Top Rubric Complexity Drivers:</span>
-            <div class="driver-tags" id="driver-tags">
-              <span class="driver-chip"><span class="driver-name">reasoning_complexity</span>: <strong>0.80</strong></span>
-              <span class="driver-chip"><span class="driver-name">accuracy_requirement</span>: <strong>0.75</strong></span>
-              <span class="driver-chip"><span class="driver-name">instruction_complexity</span>: <strong>0.60</strong></span>
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- RIGHT COLUMN: Pareto Recommendation, Frontier Chart & Live Output -->
-      <section class="panel-right">
-
-        <!-- Winning Recommendation Hero Card -->
-        <div class="glass-card winner-card" id="winner-card">
-          <div class="card-header winner-card-header">
-            <div class="winner-title-group">
-              <span class="trophy-badge">&#127942; WINNING PARETO ROUTE</span>
-              <span class="savings-highlight" id="winner-savings-pill">Save 92.5% vs Frontier</span>
-            </div>
-            <div class="vendor-tag" id="winner-vendor-tag">
-              <span class="nv-spark" id="winner-nv-spark">&#9670;</span>
-              <span id="winner-vendor-name">NVIDIA</span>
-            </div>
-          </div>
-
-          <div class="winner-body">
-            <div class="model-headline-row">
-              <div class="model-id-wrapper">
-                <h2 class="model-name-title" id="winner-model-name">Nemotron-3.5-Lightning</h2>
-                <code class="model-id-code" id="winner-model-id">nvidia/Nemotron-3_5-Lightning</code>
-              </div>
-              <button class="copy-btn" id="copy-model-id-btn" title="Copy model ID">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <span id="copy-btn-label">Copy</span>
-              </button>
-            </div>
-
-            <!-- KPI Metric Chips Grid -->
-            <div class="winner-kpis-grid">
-              <div class="kpi-box">
-                <span class="kpi-label">&#128176; Estimated Cost</span>
-                <span class="kpi-value font-mono highlight-cost" id="kpi-cost">$0.000037</span>
-                <span class="kpi-sub" id="kpi-savings-text">92.5% cheaper than 405B</span>
-              </div>
-              <div class="kpi-box">
-                <span class="kpi-label">&#9889; Projected Latency</span>
-                <span class="kpi-value font-mono highlight-lat" id="kpi-latency">1.91s</span>
-                <span class="kpi-sub">314.1 tokens/sec throughput</span>
-              </div>
-              <div class="kpi-box">
-                <span class="kpi-label">&#127919; Quality Match</span>
-                <span class="kpi-value font-mono highlight-qual" id="kpi-quality">89.0 / 100</span>
-                <span class="kpi-sub">Optimal Tier &amp; Affinity</span>
-              </div>
-              <div class="kpi-box">
-                <span class="kpi-label">&#128393; Frontier Status</span>
-                <span class="kpi-value highlight-status" id="kpi-status">Pareto Optimal</span>
-                <span class="kpi-sub">Unbeatable Cost/Quality</span>
-              </div>
-            </div>
-
-            <!-- Plain English Rationale -->
-            <div class="rationale-box">
-              <span class="rationale-icon">&#128161;</span>
-              <p class="rationale-text" id="winner-rationale">
-                Prompt matches NANO tier (coding, complexity=0.18). Selected Nemotron-3.5-Lightning (NVIDIA Open-Source) as the Pareto-optimal candidate: delivers 89.0/100 quality fit at $0.000037 (92.5% cheaper than frontier Nous-Hermes-405B).
-              </p>
-            </div>
-          </div>
-        </div>
-
-
-        <!-- Live Nebius Inference Output Terminal -->
-        <div class="glass-card terminal-card" id="terminal-card">
-          <div class="card-header terminal-card-header">
-            <div class="terminal-title-group">
-              <span class="terminal-status-icon" id="terminal-status-icon">&#9654;</span>
-              <h3 class="card-title">Nebius Token Factory Response</h3>
-              <span class="terminal-model-badge font-mono" id="terminal-model-name">nvidia/Nemotron-3_5-Lightning</span>
-            </div>
-            <div class="terminal-stats" id="terminal-stats">
-              <span class="t-stat" id="stat-latency">&#9889; 1.48s</span>
-              <span class="t-stat" id="stat-tokens">&#128202; 142 tok</span>
-              <span class="t-stat" id="stat-cost">&#128176; $0.000035</span>
-            </div>
-            <button class="copy-terminal-btn" id="copy-output-btn" title="Copy response to clipboard">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              <span>Copy</span>
-            </button>
-          </div>
-
-          <div class="terminal-body">
-            <pre class="terminal-content" id="terminal-content">Click "Route &amp; Generate Live" to execute this prompt directly against Nebius Token Factory with the winning Pareto-optimal model. Response tokens and live execution latency will stream here.</pre>
-          </div>
-        </div>
-
-      </section>
-
+        </section>
+        <section class="card" id="generation-card" aria-labelledby="generation-title">
+          <h2 id="generation-title">3. Generate an answer</h2>
+          <p class="hint" id="generation-availability">Checking whether live generation is available…</p>
+          <label for="generation-model">Model to run</label>
+          <select id="generation-model" disabled><option>Analyze a prompt first</option></select>
+          <p id="generation-estimate" class="hint">Review the recommendation before generating.</p>
+          <label class="check"><input type="checkbox" id="consent"> I agree to send this prompt through the app’s server to Nebius for generation.</label>
+          <p class="hint">Output is capped at 1,024 tokens. The app owner covers provider usage. Displayed costs are estimates, not a charge to you. <a href="/privacy.html">Privacy and data handling</a></p>
+          <button type="button" id="generate-button" class="button primary wide" disabled>Generate answer</button>
+        </section>
+        <section class="card" id="answer-card" aria-labelledby="answer-title">
+          <div class="card-heading"><h2 id="answer-title">Your answer</h2><div class="actions"><button type="button" id="copy-answer" class="button secondary" disabled>Copy</button><button type="button" id="share-answer" class="button secondary" disabled>Share</button></div></div>
+          <p id="answer-status" class="hint" role="status" aria-live="polite">No generation requests have been made.</p>
+          <div id="answer-metrics" class="hint"></div>
+          <pre id="answer" tabindex="0">An answer will appear here after you choose Generate.</pre>
+        </section>
     </main>
-
-    <!-- Footer -->
-    <footer class="app-footer">
-      <div class="footer-left">
-        <span>&copy; 2026 LLMOptiFit &bull; Built for Nebius Token Factory &amp; NVIDIA Open-Source Hackathon</span>
-      </div>
-      <div class="footer-right">
-        <span>Evaluated across 1,000 LMSYS Arena benchmark prompts with 100% classification precision</span>
-      </div>
-    </footer>
+    <footer><span>LLMOptiFit · An independent model-selection tool</span><a href="/privacy.html">Privacy &amp; service limits</a><span>Free pilot · No account required</span></footer>
   </div>
-
-  <!-- Nebius Catalog Drawer Modal -->
-  <div class="modal-backdrop" id="catalog-modal-backdrop">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div class="modal-title-group">
-          <h3 class="modal-title">Nebius Token Factory Model Catalog</h3>
-          <p class="modal-subtitle">24 Live Models Available for Dynamic Routing</p>
-        </div>
-        <button class="close-modal-btn" id="close-catalog-btn">&times;</button>
-      </div>
-
-      <div class="modal-filter-row">
-        <input type="text" id="catalog-search" class="catalog-search-input" placeholder="Search by model name or vendor (nvidia, qwen, meta, google)...">
-        <div class="catalog-filter-tags" id="catalog-tier-filters">
-          <button class="filter-pill active" data-filter="all">All (24)</button>
-          <button class="filter-pill" data-filter="nano">Nano (&le;30B)</button>
-          <button class="filter-pill" data-filter="super">Super (30B-120B)</button>
-          <button class="filter-pill" data-filter="ultra">Ultra (&ge;120B)</button>
-          <button class="filter-pill" data-filter="nvidia">&#9670; NVIDIA Only</button>
-        </div>
-      </div>
-
-      <div class="catalog-table-container">
-        <table class="catalog-table">
-          <thead>
-            <tr>
-              <th>Model</th>
-              <th>Vendor</th>
-              <th>Tier</th>
-              <th>Context</th>
-              <th>Input $/M</th>
-              <th>Output $/M</th>
-              <th>Speed</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="catalog-table-body">
-            <!-- Dynamic model rows -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <script src="app.js"></script>
+  <dialog id="catalog-dialog" aria-labelledby="catalog-title">
+    <div class="card-heading"><h2 id="catalog-title">Model catalog</h2><button class="button secondary" type="button" data-close="catalog-dialog" aria-label="Close model catalog">Close</button></div>
+    <p id="catalog-status" class="hint" role="status"></p>
+    <label for="catalog-search">Search model, vendor, or tier</label><input id="catalog-search" type="search" placeholder="e.g. NVIDIA or coding">
+    <div id="catalog-list" class="catalog-list"></div>
+  </dialog>
+  <dialog id="install-dialog" aria-labelledby="install-title">
+    <div class="card-heading"><h2 id="install-title">Install LLMOptiFit</h2><button class="button secondary" type="button" data-close="install-dialog">Close</button></div>
+    <button type="button" id="native-install" class="button primary" hidden>Install on this device</button>
+    <p><strong>iPhone or iPad:</strong> Open this site in Safari, choose Share → Add to Home Screen, and enable Open as Web App if offered.</p>
+    <p><strong>Android:</strong> Open in Chrome and choose Install app or Add to Home Screen from the browser menu.</p>
+    <p><strong>Desktop:</strong> Use your browser's install icon when available.</p>
+    <p class="hint">Installation is free. The interface can open offline after your first visit; analysis and generation need an internet connection.</p>
+  </dialog>
 </body>
 </html>

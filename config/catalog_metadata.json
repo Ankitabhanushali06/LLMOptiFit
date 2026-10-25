@@ -1,0 +1,13 @@
+{
+  "catalog_version": "6a4686faa5b0",
+  "verified_at": "2026-10-24T14:34:49.107229+00:00",
+  "source": "https://tokenfactory.nebius.com/api/public/models_info",
+  "verified_fields": [
+    "model_id",
+    "input_price_per_million",
+    "output_price_per_million",
+    "context_window_tokens",
+    "tokens_per_second"
+  ],
+  "notes": "Public metadata snapshot; account-specific availability is not guaranteed. Tier, task affinities, quality_score and capability flags remain curated heuristics."
+}

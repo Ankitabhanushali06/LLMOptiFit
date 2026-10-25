@@ -13,3 +13,10 @@ ipykernel>=6.29.0
 
 # Visualization
 matplotlib>=3.8.0
+altair>=5.0.0
+
+# Web Applications & API
+streamlit>=1.35.0
+fastapi>=0.110.0
+uvicorn>=0.30.0
+pydantic>=2.7.0

@@ -1,5 +1,56 @@
 # LLMOptiFit
 
+## Installable web app (current release)
+
+The public app uses FastAPI and the mobile-friendly interface in `web/`. It supports free prompt analysis, model comparisons, Android/iPhone Home Screen installation, and optional generation using **the owner's server-side Nebius key**. Visitors never enter or receive that key.
+
+### Run locally
+
+```bash
+python3.14 -m venv .venv
+.venv/bin/python -m pip install -r requirements-runtime.txt
+.venv/bin/uvicorn api.server:app --host 127.0.0.1 --port 8000 --no-proxy-headers --no-access-log
+```
+
+Open <http://localhost:8000>. The server checks both bundled classifier artifacts at startup. `/api/health` reports readiness and generation availability; `/api/catalog` reports the snapshot version and verification date. API requests use JSON; prompts are limited to 20,000 characters. API responses are never cached. Interactive API docs are disabled in the public app.
+
+Analysis requires no paid model calls. For generation, set `NEBIUS_API_KEY` in local `.env` (already ignored by Git) or in your hosting secret manager. Set `GENERATION_ENABLED=true` only when you are ready to let visitors consume your Nebius balance. The default is `false`; this preserves the $0 constraint until billing is resolved. The public API ignores visitor key headers and never accepts a provider URL.
+
+**Request limits are not spending limits.** A public server using your key can incur charges. Promotional credits can expire or be exhausted; do not enable public generation on the assumption that a trial account cannot bill you. This app does not implement a durable monetary budget. Configure a provider-enforced credit-only cap if available, or explicitly accept usage charges before enabling generation.
+
+### Free Render deployment
+
+1. Push the reviewed changes to your own repository. Preserve `cache/models/*.pkl`; never commit `.env` or a provider key.
+2. Connect that repository in Render and apply `render.yaml`. Confirm the **Free** compute plan, no payment method, no database, and no paid add-ons. The app uses the free HTTPS `onrender.com` address.
+3. Leave `GENERATION_ENABLED=false` for the initial analysis-only deployment. When billing is resolved, add `NEBIUS_API_KEY` as a secret in Render and explicitly enable generation.
+4. Check `/api/health`, analyze a sample prompt, and test Home Screen installation on a real iPhone and Android device. Only perform a real generation request when you intentionally accept its provider usage.
+5. If a deployment fails, use Render's rollback to the last successful revision. Restore the previous Git revision and redeploy if it is outside Render's free rollback window. Manual deployments are configured; pushes do not automatically publish.
+
+Render sleeps idle free services and may take about a minute to wake them. It can suspend service when free allowances are exhausted. Do not enable paid upgrades, paid databases, or automated keep-alive traffic. See [Render's current free-tier limits](https://render.com/docs/free).
+
+The single-worker process keeps hashed IP rate-limit counters in memory for one minute (30 analyses and 5 generation attempts/minute/IP). A semaphore permits two concurrent generation calls. Counters reset on restart and are availability controls, not abuse-proof quotas or billing controls. The deployment disables Uvicorn access logs; application logs contain only known route names, status codes, and elapsed time. Hosting infrastructure may retain network metadata under its policies.
+
+### Tests and maintenance
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+Tests block outbound provider traffic and cover owner-key isolation, disabled generation, routing, usage accounting, limits, safe errors, and static file access. Optional browser tests use an isolated Chromium profile and mocked inference:
+
+```bash
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python tests/browser_smoke.py --browser '/path/to/chromium'
+```
+
+The browser test creates and stops its own local server/browser, checks mobile and desktop layouts, safe rendering, consent, catalog, installation help and offline reload, and saves screenshots under `/tmp/llmoptifit-browser`. It never attaches to your personal browser profile. Actual Android/iPhone installation still needs a device check.
+
+A clean Ubuntu CI job validates the pinned runtime and runs the tests. Update model metadata with `python tools/refresh_catalog.py` (public metadata only; no inference charge), review the catalog diff, then redeploy. The script updates existing models only; it does not invent rankings for newly released models. Version the service-worker cache name whenever interface assets change. Browser updates activate after old tabs close.
+
+The sections below describe the broader research project and its local demo tools; they are not additional public-app features.
+
+---
+
 **Compare LLMs. Optimize cost. Choose the right fit.**
 
 LLMOptiFit is an AI model comparison and recommendation platform designed to help users identify the most suitable Large Language Model for a specific task.
@@ -537,9 +588,41 @@ python test_recommendation.py --demo
 # 4. Programmatic JSON output
 python test_recommendation.py "What is photosynthesis?" --json-output
 
-# 5. Run the 1,000 Prompt Comprehensive Stress Test (100% Accuracy)
+# 5. Run the 1,000 Prompt Synthetic Routing Regression Benchmark
 python tools/benchmark_1000_prompts.py
 ```
+
+# Running the Applications
+
+LLMOptiFit provides two full application experiences, plus a one-click launcher:
+
+### 1. Interactive Streamlit Dashboard (Recommended for Demos & Hackathon Evaluation)
+Features real-time prompt telemetry, interactive Altair Pareto frontier tradeoff curves, quick benchmark presets, and live Nebius Token Factory generation:
+
+```bash
+# Run with launcher:
+./run_app.sh streamlit
+
+# Or directly with Streamlit:
+.venv/bin/streamlit run streamlit_app.py
+```
+Open **`http://localhost:8501`** in your browser.
+
+---
+
+### 2. FastAPI Modular Application & OpenAPI Swagger UI
+FastAPI backend for the installable web app:
+
+```bash
+# Run with launcher:
+./run_app.sh api
+
+# Or directly with Uvicorn:
+.venv/bin/uvicorn api.server:app --reload --port 8000
+```
+- Public API docs are disabled; see `api/schemas.py` for request/response contracts.
+- Web Frontend: **`http://localhost:8000/`**
+- API Endpoints: `/api/health`, `/api/catalog`, `/api/analyze`, `/api/generate`
 
 ---
 
