@@ -12,4 +12,4 @@ data/*
 data/arena/*
 !data/arena/arena_prompts_english.parquet
 !data/arena/arena_prompts_english.csv
-
+*.zip

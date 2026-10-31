@@ -1,5 +1,9 @@
 # LLMOptiFit
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Public_Repo-blue.svg)](https://github.com/Ankitabhanushali06/LLMOptiFit)
+[![CI Tests](https://github.com/Ankitabhanushali06/LLMOptiFit/actions/workflows/web-checks.yml/badge.svg)](https://github.com/Ankitabhanushali06/LLMOptiFit/actions/workflows/web-checks.yml)
+
 ## Installable web app (current release)
 
 The public app uses FastAPI and the mobile-friendly interface in `web/`. It supports free prompt analysis, model comparisons, Android/iPhone Home Screen installation, and optional generation using **the owner's server-side Nebius key**. Visitors never enter or receive that key.
@@ -631,3 +635,9 @@ FastAPI backend for the installable web app:
 LLM performance varies depending on prompts, datasets, model versions, provider updates, temperature settings, system instructions, and evaluation methodology.
 
 LLMOptiFit recommendations should therefore be treated as decision-support information rather than an absolute measure of model quality. Model pricing and capabilities may also change over time and should be verified with the respective model provider.
+
+---
+
+# License
+
+This project is licensed under the terms of the [MIT License](LICENSE).
